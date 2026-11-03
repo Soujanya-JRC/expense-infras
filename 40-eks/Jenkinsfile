@@ -1,77 +1,122 @@
+
 pipeline {
-    agent { label 'AGENT1' }
-    environment { 
-        PROJECT = 'EXPENSE'
-        COMPONENT = 'BACKEND' 
-        DEPLOY_TO = "production"
+    agent {
+        label 'AGENT1'
     }
+
+    environment {
+        PROJECT   = 'EXPENSE'
+        COMPONENT = 'BACKEND'
+        DEPLOY_TO = 'production'
+    }
+
     options {
         disableConcurrentBuilds()
         timeout(time: 30, unit: 'MINUTES')
         ansiColor('xterm')
     }
-    parameters{
-        choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Pick something')
-    } 
-    stages {
-        stage('Init') {
-            steps {
-               script{
-                withAWS(region: 'us-east-1', credentials: 'aws-creds') {
-                    sh """
-                        cd 40-eks
-                        terraform init -reconfigure
-                        terraform plan
-                    """
-                }
-                 
-               }
-            }
-        }
-        stage('Apply') {
-            steps {
-               script{
-                withAWS(region: 'us-east-1', credentials: 'aws-creds') {
-                    sh """
-                        cd 40-eks
-                        terraform apply -auto-approve
-                    """
-                }
-                 
-               }
-            }
-        }
-        
-    }
-    stage('Destroy') {
-            when { 
-                expression { params.ACTION == 'destroy'}
-            }
-            steps {
-               script{
-                withAWS(region: 'us-east-1', credentials: 'aws-creds') {
-                        sh """
-                            cd 40-eks
-                            terraform destroy -auto-approve
-                        """
-                    }
-                }
-                 
-               }
-            }
-        }
-        
+
+    parameters {
+        choice(
+            name: 'ACTION',
+            choices: ['apply', 'destroy'],
+            description: 'Select Terraform action'
+        )
     }
 
-    post { 
-        always { 
+    stages {
+
+        stage('Init') {
+            steps {
+                script {
+                    withAWS(
+                        region: 'us-east-1',
+                        credentials: 'aws-creds'
+                    ) {
+                        sh '''
+                            cd 40-eks
+                            terraform init -reconfigure
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Plan') {
+            when {
+                expression {
+                    params.ACTION == 'apply'
+                }
+            }
+            steps {
+                script {
+                    withAWS(
+                        region: 'us-east-1',
+                        credentials: 'aws-creds'
+                    ) {
+                        sh '''
+                            cd 40-eks
+                            terraform plan
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Apply') {
+            when {
+                expression {
+                    params.ACTION == 'apply'
+                }
+            }
+            steps {
+                script {
+                    withAWS(
+                        region: 'us-east-1',
+                        credentials: 'aws-creds'
+                    ) {
+                        sh '''
+                            cd 40-eks
+                            terraform apply -auto-approve
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Destroy') {
+            when {
+                expression {
+                    params.ACTION == 'destroy'
+                }
+            }
+            steps {
+                script {
+                    withAWS(
+                        region: 'us-east-1',
+                        credentials: 'aws-creds'
+                    ) {
+                        sh '''
+                            cd 40-eks
+                            terraform destroy -auto-approve
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
             echo 'I will always say Hello again!'
             deleteDir()
         }
-        failure { 
+
+        failure {
             echo 'I will run when pipeline is failed'
         }
-        success { 
+
+        success {
             echo 'I will run when pipeline is success'
         }
     }
