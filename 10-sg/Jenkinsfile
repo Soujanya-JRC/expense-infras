@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'AGENT1' }
+    agent { label 'AGENT-1' }
     environment { 
         PROJECT = 'EXPENSE'
         COMPONENT = 'BACKEND' 
@@ -12,7 +12,7 @@ pipeline {
     }
     parameters{
         choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Pick something')
-    }
+    } 
     stages {
         stage('Init') {
             steps {
@@ -29,10 +29,10 @@ pipeline {
             }
         }
         stage('Apply') {
-            input {
+            /* input {
                 message "Should we continue?"
                 ok "Yes, we should."
-            }
+            } */
             steps {
                script{
                 withAWS(region: 'us-east-1', credentials: 'aws-creds') {
@@ -44,6 +44,59 @@ pipeline {
                  
                }
             }
+        }
+        stage('Parallel Stages') {
+            when { 
+                expression { params.ACTION == 'apply'}
+            }
+            parallel {
+                stage('20-bastion') {    
+                    steps {
+                        build job: '20-bastion', parameters: [string(name: 'ACTION', value: 'apply')], wait: false
+                    }
+                }
+                stage('30-rds') {
+                    steps {
+                        build job: '30-rds', parameters: [string(name: 'ACTION', value: 'apply')], wait: false
+                    }
+                }
+                stage('40-eks') {
+                    steps {
+                        build job: '40-eks', parameters: [string(name: 'ACTION', value: 'apply')], wait: false
+                    }
+                }
+                stage('50-ecr') {
+                    steps {
+                        build job: '50-ecr', parameters: [string(name: 'ACTION', value: 'apply')], wait: false
+                    }
+                }
+            }
+        }
+        stage('Sequential') {
+            stages {
+                stage('60-acm') {
+                    steps {
+                        build job: '60-acm', parameters: [string(name: 'ACTION', value: 'apply')], wait: false
+                    }
+                }
+                stage('70-ingress-alb') {
+                    steps {
+                        build job: '70-ingress-alb', parameters: [string(name: 'ACTION', value: 'apply')], wait: false
+                    }
+                }
+            }
+        }
+    }
+    post { 
+        always { 
+            echo 'I will always say Hello again!'
+            deleteDir()
+        }
+        failure { 
+            echo 'I will run when pipeline is failed'
+        }
+        success { 
+            echo 'I will run when pipeline is success'
         }
     }
 }
