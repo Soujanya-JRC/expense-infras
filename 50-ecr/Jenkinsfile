@@ -37,7 +37,6 @@ pipeline {
                         sh """
                             cd 50-ecr
                             terraform plan
-                            terraform apply -auto-approve
                         """
                     } else {
                         sh """
