@@ -28,14 +28,23 @@ pipeline {
                }
             }
         }
-        stage('Apply') {
+        stage('Apply or Destroy') {
             steps {
                script{
                 withAWS(region: 'us-east-1', credentials: 'aws-creds') {
-                    sh """
-                        cd 50-ecr
-                        terraform apply -auto-approve
-                    """
+                    
+                     if (params.ACTION == 'apply') {
+                        sh """
+                            cd 50-ecr
+                            terraform plan
+                            terraform apply -auto-approve
+                        """
+                    } else {
+                        sh """
+                            cd 50-ecr
+                            terraform destroy -auto-approve
+                        """
+                    }
                 }
                  
                }
@@ -63,8 +72,7 @@ pipeline {
         }
         
     }
-        
-    }
+}
     post { 
         always { 
             echo 'I will always say Hello again!'
